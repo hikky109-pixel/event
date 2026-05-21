@@ -105,9 +105,9 @@ else:
     LINE = "─" * 28
     
     message = f"**名古屋イベント情報**\n"
+    message += f"{today.strftime('%m月%d日')}（{weekday}）\n"
     message += "（サンデーフォーク＋ドーム対応ベータ版）\n"
     message += LINE + "\n"
-    message += f"対象日: {today.strftime('%m月%d日')}（{weekday}）\n"
     message += f"合計 **{len(events)}件**\n"
     message += LINE + "\n\n"
     
