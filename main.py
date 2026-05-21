@@ -3,7 +3,13 @@ from bs4 import BeautifulSoup
 import re
 import requests
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+# 日本時間（JST）を強制
+JST = timezone(timedelta(hours=9))
+today = datetime.now(JST)
+TARGET_DATE = today.strftime("%Y%m%d")
+weekday = ["月", "火", "水", "木", "金", "土", "日"][today.weekday()]
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
@@ -11,11 +17,9 @@ if not WEBHOOK_URL:
     print("❌ DISCORD_WEBHOOK_URL が設定されていません")
     exit(1)
 
-print("=== 今日の名古屋エリアイベント（サンデーフォーク + バンテリンドーム） ===\n")
-
-today = datetime.now()
-TARGET_DATE = today.strftime("%Y%m%d")
-weekday = ["月", "火", "水", "木", "金", "土", "日"][today.weekday()]
+print(f"=== 今日の名古屋エリアイベント（サンデーフォーク + バンテリンドーム） ===\n")
+print(f"現在JST: {today.strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"対象日: {today.strftime('%m月%d日')}（{weekday}） / d{TARGET_DATE}\n")
 
 events = []
 
@@ -31,6 +35,7 @@ with sync_playwright() as p:
     
     block = soup.find("div", id=f"d{TARGET_DATE}")
     if block:
+        print(f"✅ d{TARGET_DATE} ブロック発見")
         table = block.find("table", class_="tableList")
         if table:
             for row in table.find_all("tr")[1:]:
