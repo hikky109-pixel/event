@@ -5,7 +5,7 @@ import requests
 import os
 from datetime import datetime, timedelta, timezone
 
-# 日本時間（JST）を強制
+# 日本時間
 JST = timezone(timedelta(hours=9))
 today = datetime.now(JST)
 TARGET_DATE = today.strftime("%Y%m%d")
@@ -18,7 +18,6 @@ if not WEBHOOK_URL:
     exit(1)
 
 print(f"=== 今日の名古屋エリアイベント（サンデーフォーク + バンテリンドーム） ===\n")
-print(f"現在JST: {today.strftime('%Y-%m-%d %H:%M:%S')}")
 print(f"対象日: {today.strftime('%m月%d日')}（{weekday}） / d{TARGET_DATE}\n")
 
 events = []
@@ -35,7 +34,6 @@ with sync_playwright() as p:
     
     block = soup.find("div", id=f"d{TARGET_DATE}")
     if block:
-        print(f"✅ d{TARGET_DATE} ブロック発見")
         table = block.find("table", class_="tableList")
         if table:
             for row in table.find_all("tr")[1:]:
@@ -104,13 +102,19 @@ if len(events) == 0:
 else:
     events.sort(key=lambda x: x["time"] if ":" in x["time"] else "99:99")
     
-    message = f"**名古屋ライブ情報**（サンデーフォーク＋ドーム対応ベータ版）\n"
+    LINE = "─" * 28
+    
+    message = f"**名古屋イベント情報**\n"
+    message += "（サンデーフォーク＋ドーム対応ベータ版）\n"
+    message += LINE + "\n"
     message += f"対象日: {today.strftime('%m月%d日')}（{weekday}）\n"
-    message += f"合計 **{len(events)}件**\n\n"
+    message += f"合計 **{len(events)}件**\n"
+    message += LINE + "\n\n"
     
     for e in events:
         message += f"⏰ **{e['time']}**　📍 {e['venue']}\n"
-        message += f"🎤 {e['artist']}\n\n"
+        message += f"🎤 {e['artist']}\n"
+        message += LINE + "\n\n"
 
     try:
         response = requests.post(WEBHOOK_URL, json={"content": message}, timeout=15)
