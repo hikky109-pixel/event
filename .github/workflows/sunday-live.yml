@@ -2,8 +2,8 @@ name: Daily Sunday Folk Live Info
 
 on:
   schedule:
-    - cron: '0 17 * * *'     # 日本時間 毎日 2:00（UTC 17:00）
-  workflow_dispatch:         # 手動実行ボタン
+    - cron: '0 17 * * *'     # 日本時間 毎日 2:00
+  workflow_dispatch:
 
 jobs:
   post-live-info:
@@ -17,7 +17,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: Install dependencies
         run: |
@@ -36,4 +35,3 @@ jobs:
         run: |
           echo "✅ 投稿完了"
           echo "日時: $(date '+%Y-%m-%d %H:%M:%S JST')"
-          echo "トリガー: ${{ github.event_name }}"
