@@ -4,7 +4,9 @@ import re
 from datetime import datetime
 import requests
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 if not WEBHOOK_URL:
@@ -19,14 +21,12 @@ weekday = ["月", "火", "水", "木", "金", "土", "日"][today.weekday()]
 month = TARGET_DATE[4:6]
 day = TARGET_DATE[6:8]
 
-message = f"=== {month}月{day}日（{weekday}） ライブ情報 ===\n"
-message += "（サンデーフォークのみ / ベータ版）\n\n"
-
 events = []
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
     page = browser.new_page()
+    
     page.goto("https://www.sundayfolk.com/calendar/2026/05/", timeout=60000)
     page.wait_for_timeout(8000)
     
@@ -48,6 +48,7 @@ with sync_playwright() as p:
                 artist = cols[0].get_text(strip=True)
                 venue = cols[3].get_text(strip=True)
                 
+                # 30文字で折り返し
                 if len(venue) > 30:
                     venue = venue[:30] + "\n" + venue[30:]
                 
@@ -81,23 +82,29 @@ with sync_playwright() as p:
 
 events.sort(key=lambda x: x["time"] if x["time"] != "時間情報なし" else "99:99")
 
-message += f"**本日 合計: {len(events)}件**\n"
-message += "-" * 30 + "\n\n"
-
-for e in events:
-    message += f"⏰ {e['time']}\n"
-    message += f"📍 {e['venue']}\n"
-    message += f"🎤 {e['artist']}\n"
+# ================== イベント0件の場合は投稿しない ==================
+if len(events) == 0:
+    print("ℹ️ 今日の名古屋エリアイベントは0件でした。投稿をスキップします。")
+else:
+    message = f"=== {month}月{day}日（{weekday}） ライブ情報 ===\n"
+    message += "（サンデーフォークのみ / ベータ版）\n\n"
+    message += f"**本日 合計: {len(events)}件**\n"
     message += "-" * 30 + "\n\n"
 
-# Discord投稿
-try:
-    response = requests.post(WEBHOOK_URL, json={"content": message}, timeout=15)
-    if response.status_code == 204:
-        print("✅ Discordに投稿完了！")
-    else:
-        print(f"⚠️ 失敗: {response.status_code}")
-except Exception as e:
-    print(f"❌ エラー: {e}")
+    for e in events:
+        message += f"⏰ {e['time']}\n"
+        message += f"📍 {e['venue']}\n"
+        message += f"🎤 {e['artist']}\n"
+        message += "-" * 30 + "\n\n"
+
+    # Discord送信
+    try:
+        response = requests.post(WEBHOOK_URL, json={"content": message}, timeout=15)
+        if response.status_code == 204:
+            print("✅ Discordに投稿完了！")
+        else:
+            print(f"⚠️ 投稿失敗: {response.status_code}")
+    except Exception as e:
+        print(f"❌ エラー: {e}")
 
 print("終了しました。")
