@@ -2,8 +2,8 @@ name: Daily Sunday Folk Live Info
 
 on:
   schedule:
-    - cron: '0 17 * * *'     # 日本時間 毎日 2:00
-  workflow_dispatch:
+    - cron: '0 17 * * *'     # 日本時間 毎日 2:00（UTC 17:00）
+  workflow_dispatch:         # 手動実行用
 
 jobs:
   post-live-info:
@@ -17,13 +17,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'               # pipキャッシュで高速化
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install playwright beautifulsoup4 requests python-dotenv
 
-      - name: Install Playwright browsers
+      - name: Install Playwright Chromium
         run: playwright install --with-deps chromium
 
       - name: Run Sunday Folk Scraper
@@ -31,7 +32,7 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python main.py
 
-      - name: Job Summary
+      - name: Job Complete
         run: |
-          echo "✅ 投稿完了"
-          echo "日時: $(date '+%Y-%m-%d %H:%M:%S JST')"
+          echo "✅ 投稿完了 - $(date '+%Y-%m-%d %H:%M:%S JST')"
+          echo "トリガー: ${{ github.event_name }}"
