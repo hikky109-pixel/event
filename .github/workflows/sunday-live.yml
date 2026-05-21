@@ -2,8 +2,8 @@ name: Daily Sunday Folk Live Info
 
 on:
   schedule:
-    - cron: '0 17 * * *'   # 日本時間 2:00（UTC 17:00）
-  workflow_dispatch:       # 手動実行も可能
+    - cron: '0 17 * * *'   # 日本時間 2:00
+  workflow_dispatch:       # ← 手動テスト用ボタン
 
 jobs:
   post-live-info:
@@ -24,10 +24,10 @@ jobs:
           pip install playwright beautifulsoup4 requests python-dotenv
           playwright install --with-deps chromium
 
-      - name: Run script
+      - name: Run Sunday Folk Scraper
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python main.py
-      - name: Log completion
-        run: echo "✅ 今日の投稿が完了しました（日本時間 2:00）"
-      
+
+      - name: Completion Log
+        run: echo "✅ テスト投稿完了（${{ github.event_name }}）"
