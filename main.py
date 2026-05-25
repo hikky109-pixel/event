@@ -5,20 +5,23 @@ import requests
 import os
 from datetime import datetime, timedelta, timezone
 
-# 日本時間
+# ====================== 設定 ======================
 JST = timezone(timedelta(hours=9))
 today = datetime.now(JST)
 TARGET_DATE = today.strftime("%Y%m%d")
 weekday = ["月", "火", "水", "木", "金", "土", "日"][today.weekday()]
 
-WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
+# 六曜
+rokuyou_list = ["先勝", "友引", "先負", "仏滅", "大安", "赤口"]
+rokuyou = rokuyou_list[(today.year * 12 + today.month + today.day) % 6]
 
+WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 if not WEBHOOK_URL:
     print("❌ DISCORD_WEBHOOK_URL が設定されていません")
     exit(1)
 
 print(f"=== 名古屋エリアイベント（イベント＋ドームベータ版） ===\n")
-print(f"対象日: {today.strftime('%m月%d日')}（{weekday}）\n")
+print(f"対象日: {today.strftime('%m月%d日')}（{weekday}） {rokuyou}\n")
 
 events = []
 seen = set()
@@ -135,32 +138,33 @@ with sync_playwright() as p:
                             events.append({"time": time_text, "venue": venue, "artist": artist})
 
 # ================== Discord投稿 ==================
+events.sort(key=lambda x: x["time"] if ":" in str(x["time"]) else "99:99")
+
+LINE = "─" * 28
+
+message = f"**名古屋イベント情報**\n"
+message += f"{today.strftime('%m月%d日')}（{weekday}） {rokuyou}\n"
+message += "（イベント＋ドームベータ版）\n"
+message += LINE + "\n"
+
 if len(events) == 0:
-    print("ℹ️ 今日はイベント0件でした。投稿をスキップします。")
+    message += "**本日のイベントはありません**\n"
 else:
-    events.sort(key=lambda x: x["time"] if ":" in str(x["time"]) else "99:99")
-    
-    LINE = "─" * 28
-    
-    message = f"**名古屋イベント情報**\n"
-    message += f"{today.strftime('%m月%d日')}（{weekday}）\n"
-    message += "（イベント＋ドームベータ版）\n"
-    message += LINE + "\n"
     message += f"合計 **{len(events)}件**\n"
     message += LINE + "\n\n"
     
     for e in events:
-        message += f"⏰ **{e['time']}**　📍 {e['venue']}\n"
-        message += f"🎤 {e['artist']}\n"
+        message += f"📢 **{e['time']}**　📍 {e['venue']}\n"
+        message += f"📣 {e['artist']}\n"
         message += LINE + "\n\n"
 
-    try:
-        response = requests.post(WEBHOOK_URL, json={"content": message}, timeout=15)
-        if response.status_code == 204:
-            print("✅ Discord投稿完了！")
-        else:
-            print(f"⚠️ 投稿失敗: {response.status_code}")
-    except Exception as e:
-        print(f"❌ エラー: {e}")
+try:
+    response = requests.post(WEBHOOK_URL, json={"content": message}, timeout=15)
+    if response.status_code == 204:
+        print("✅ Discord投稿完了！")
+    else:
+        print(f"⚠️ 投稿失敗: {response.status_code}")
+except Exception as e:
+    print(f"❌ エラー: {e}")
 
 print("終了しました。")
