@@ -176,6 +176,32 @@ with sync_playwright() as p:
 
     soup = BeautifulSoup(page.content(), "html.parser")
 
+    known_venues = [
+        "IGアリーナ",
+        "日本ガイシホール",
+        "クロコくんホール",
+        "Zepp Nagoya",
+        "Niterra日本特殊陶業市民会館フォレストホール",
+        "Niterra日本特殊陶業市民会館ビレッジホール",
+        "愛知県芸術劇場",
+        "御園座",
+        "岡谷鋼機名古屋公会堂",
+        "名古屋市公会堂",
+        "COMTEC PORTBASE",
+        "ポートベース",
+        "DIAMOND HALL",
+        "クラブクワトロ",
+        "NAGOYA JAMMIN",
+    ]
+
+    nagoya_keywords = [
+        "名古屋", "Zepp", "ポートベース", "IGアリーナ",
+        "ガイシホール", "Niterra", "日本特殊陶業",
+        "中電", "御園座", "クワトロ", "瑞穂",
+        "栄", "NAGOYA JAMMIN", "愛知県芸術劇場",
+        "岡谷鋼機名古屋公会堂", "名古屋市公会堂"
+    ]
+
     for strong in soup.find_all("strong"):
         if strong.get_text(strip=True) == str(today.day):
             tr = strong.find_parent("tr")
@@ -194,49 +220,59 @@ with sync_playwright() as p:
                 page.wait_for_timeout(8000)
 
                 detail_soup = BeautifulSoup(page.content(), "html.parser")
+
+                # 今日・明日の公演サイドバー除去
+                removed_side = len(detail_soup.select("div.side, div.sidetoday"))
+                for ng in detail_soup.select("div.side, div.sidetoday"):
+                    ng.decompose()
+
                 full_text = detail_soup.get_text(" ", strip=True)
 
-                year = today.year
-                month = today.month
-                day = today.day
-
-                day_block = re.search(
-                    rf"{year}年0?{month}月0?{day}日.*?開[　\s]*演\s*(\d{{1,2}}[:：]\d{{2}})",
-                    full_text,
-                    re.DOTALL
-                )
-                time_text = day_block.group(1).replace("：", ":") if day_block else "時間情報なし"
-
-                known_venues = [
-                    "IGアリーナ",
-                    "日本ガイシホール",
-                    "クロコくんホール",
-                    "Zepp Nagoya",
-                    "Niterra日本特殊陶業市民会館フォレストホール",
-                    "Niterra日本特殊陶業市民会館ビレッジホール",
-                    "愛知県芸術劇場",
-                    "御園座",
-                    "岡谷鋼機名古屋公会堂",
-                    "名古屋市公会堂",
-                    "COMTEC PORTBASE",
-                    "ポートベース",
-                    "DIAMOND HALL",
-                    "クラブクワトロ",
-                    "NAGOYA JAMMIN",
-                ]
-
-                venue = "キョードー東海"
-                for v in known_venues:
-                    if v in full_text:
-                        venue = v
+                # 開演時間取得：th「開演」→ td
+                time_text = "時間情報なし"
+                for th in detail_soup.find_all("th"):
+                    label = th.get_text(" ", strip=True).replace("　", "").replace(" ", "")
+                    if label == "開演":
+                        td = th.find_next_sibling("td")
+                        if td:
+                            m = re.search(r"\d{1,2}[:：]\d{2}", td.get_text(" ", strip=True))
+                            if m:
+                                time_text = m.group(0).replace("：", ":")
                         break
 
-                nagoya_keywords = [
-                    "名古屋", "Zepp", "ポートベース", "IGアリーナ",
-                    "ガイシホール", "Niterra", "日本特殊陶業",
-                    "中電", "御園座", "クワトロ", "瑞穂",
-                    "栄", "NAGOYA JAMMIN", "愛知県芸術劇場"
-                ]
+                # 保険：開演が取れない場合は本文から検索
+                if time_text == "時間情報なし":
+                    year = today.year
+                    month = today.month
+                    day = today.day
+                    day_block = re.search(
+                        rf"{year}年0?{month}月0?{day}日.*?開[　\s]*演\s*(\d{{1,2}}[:：]\d{{2}})",
+                        full_text,
+                        re.DOTALL
+                    )
+                    time_text = day_block.group(1).replace("：", ":") if day_block else "時間情報なし"
+
+                # 会場取得：th「会場」→ td
+                venue = "キョードー東海"
+                venue_from_table = ""
+
+                for th in detail_soup.find_all("th"):
+                    label = th.get_text(" ", strip=True).replace("　", "").replace(" ", "")
+                    if label == "会場":
+                        td = th.find_next_sibling("td")
+                        if td:
+                            venue_from_table = td.get_text(" ", strip=True)
+                        break
+
+                if venue_from_table:
+                    venue = venue_from_table
+                else:
+                    for v in known_venues:
+                        if v in full_text:
+                            venue = v
+                            break
+
+                print(f"  └ キョードー抽出: {artist} / {venue} / {time_text} / side除去:{removed_side}")
 
                 if any(k in venue for k in nagoya_keywords):
                     add_event(time_text, venue, artist)
