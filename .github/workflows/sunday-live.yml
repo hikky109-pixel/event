@@ -1,8 +1,8 @@
 name: Daily Sunday Folk Live Info
 
 on:
-  schedule:
-    - cron: '0 17 * * *'     # 日本時間 毎日 2:00
+  #schedule:
+   # - cron: '0 17 * * *'     # 日本時間 毎日 2:00
   workflow_dispatch:
 
 jobs:
